@@ -194,6 +194,9 @@ export default function CheckIn() {
     if (!profile) return
     setSaving(true)
 
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSaving(false); return }
+
     const imp = profile.preferred_units === 'imperial'
     const body_weight_kg = values.weight && values.weight > 0
       ? (imp ? lbsToKg(values.weight) : values.weight)
@@ -212,7 +215,7 @@ export default function CheckIn() {
     } else {
       const { data } = await supabase
         .from('daily_entries')
-        .insert({ ...todayPayload, is_cheat_meal: false })
+        .insert({ ...todayPayload, user_id: user.id, is_cheat_meal: false })
         .select()
         .single()
       if (data) setTodayId((data as DailyEntry).id)
@@ -239,7 +242,7 @@ export default function CheckIn() {
     } else if (cal || pro || carb || fat || values.is_cheat_meal || values.notes) {
       const { data } = await supabase
         .from('daily_entries')
-        .insert({ ...yestPayload, jiu_jitsu_sessions: 0, lifting_sessions: 0 })
+        .insert({ ...yestPayload, user_id: user.id, jiu_jitsu_sessions: 0, lifting_sessions: 0 })
         .select()
         .single()
       if (data) setYesterdayId((data as DailyEntry).id)

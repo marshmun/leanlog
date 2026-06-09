@@ -57,11 +57,13 @@ export default function Photos() {
       return
     }
 
+    const { data: { user } } = await supabase.auth.getUser()
     const { error: dbErr } = await supabase.from('progress_photos').insert({
       date:         uploadDate,
       photo_type:   uploadType,
       storage_path: path,
       notes:        uploadNote || null,
+      user_id:      user!.id,
     })
 
     if (dbErr) {

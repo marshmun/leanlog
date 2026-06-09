@@ -204,7 +204,11 @@ export default function Settings() {
     if (profileId) {
       await supabase.from('user_profile').update(payload).eq('id', profileId)
     } else {
-      const { data } = await supabase.from('user_profile').insert(payload).select().single()
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data } = await supabase
+        .from('user_profile')
+        .insert({ ...payload, user_id: user!.id })
+        .select().single()
       const created = data as UserProfile | null
       if (created) setProfileId(created.id)
     }
