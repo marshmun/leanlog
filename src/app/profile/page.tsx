@@ -34,7 +34,7 @@ const schema = z.object({
   goal_type:         z.enum(['fat_loss', 'maintenance', 'lean_gain', 'performance']),
   goal_cal_offset:   z.coerce.number().int().default(0),
   experience_level:  z.enum(['beginner', 'intermediate', 'advanced']),
-  training_style:    z.string().optional(),
+  training_styles:   z.array(z.string()).default([]),
   activity_baseline: z.enum(['sedentary', 'lightly_active', 'moderately_active', 'very_active']),
   step_goal:         z.coerce.number().int().min(0).default(8000),
   sleep_goal_hours:  z.coerce.number().min(0).max(24).default(7.5),
@@ -55,7 +55,7 @@ type FormValues = {
   goal_type: GoalType
   goal_cal_offset?: number
   experience_level: 'beginner' | 'intermediate' | 'advanced'
-  training_style?: string
+  training_styles: string[]
   activity_baseline: ActivityLevel
   step_goal: number
   sleep_goal_hours: number
@@ -136,7 +136,7 @@ export default function Profile() {
       activity_baseline: 'lightly_active', preferred_units: 'imperial',
       savage_mode: false, cheat_meals: 1,
       height_ft: 5, height_in: 10, height_cm_val: 178,
-      experience_level: 'intermediate', training_style: 'lifting',
+      experience_level: 'intermediate', training_styles: ['lifting'],
       step_goal: 8000, sleep_goal_hours: 7.5,
     },
   })
@@ -145,7 +145,15 @@ export default function Profile() {
   const goalType       = watch('goal_type')
   const savage         = watch('savage_mode')
   const cheatMeals     = watch('cheat_meals')
-  const trainingStyle  = watch('training_style')
+  const trainingStyles = watch('training_styles')
+
+  function toggleStyle(value: string) {
+    const current = trainingStyles ?? []
+    setValue(
+      'training_styles',
+      current.includes(value) ? current.filter(s => s !== value) : [...current, value]
+    )
+  }
   const expLevel       = watch('experience_level')
   const nameVal        = watch('name')
 
@@ -177,7 +185,10 @@ export default function Profile() {
         setValue('step_goal',         p.step_goal ?? 8000)
         setValue('sleep_goal_hours',  p.sleep_goal_hours ?? 7.5)
         if (p.experience_level) setValue('experience_level', p.experience_level)
-        if (p.training_style)   setValue('training_style',   p.training_style)
+        // training_style is now text[] in the DB; handle old single-string rows gracefully
+        const ts = p.training_style as unknown
+        if (Array.isArray(ts))       setValue('training_styles', ts as string[])
+        else if (typeof ts === 'string' && ts) setValue('training_styles', [ts])
 
         if (imp) {
           setValue('height_ft',      ft)
@@ -255,7 +266,7 @@ export default function Profile() {
       goal_type:            values.goal_type,
       goal_calorie_offset:  values.goal_cal_offset ?? 0,
       experience_level:     values.experience_level,
-      training_style:       values.training_style || null,
+      training_style:       values.training_styles.length > 0 ? values.training_styles : null,
       activity_baseline:    values.activity_baseline,
       step_goal:            values.step_goal,
       sleep_goal_hours:     values.sleep_goal_hours,
@@ -359,11 +370,11 @@ export default function Profile() {
               <span className="text-xs bg-neutral-800 text-neutral-400 px-2 py-0.5 rounded-full capitalize">
                 {expLevel}
               </span>
-              {trainingStyle && (
-                <span className="text-xs bg-neutral-800 text-neutral-400 px-2 py-0.5 rounded-full">
-                  {TRAINING_STYLES.find(t => t.value === trainingStyle)?.label ?? trainingStyle}
+              {(trainingStyles ?? []).map(ts => (
+                <span key={ts} className="text-xs bg-neutral-800 text-neutral-400 px-2 py-0.5 rounded-full">
+                  {TRAINING_STYLES.find(t => t.value === ts)?.label ?? ts}
                 </span>
-              )}
+              ))}
             </div>
           )}
         </div>
@@ -566,20 +577,32 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Training style */}
+          {/* Training styles — multi-select */}
           <div>
-            <p className="text-xs text-neutral-500 uppercase tracking-wide mb-2">Primary Training Style</p>
+            <p className="text-xs text-neutral-500 uppercase tracking-wide mb-1">Training Styles</p>
+            <p className="text-xs text-neutral-600 mb-3">Select all that apply</p>
             <div className="grid grid-cols-3 gap-2">
               {TRAINING_STYLES.map(({ value, label, emoji }) => {
-                const active = trainingStyle === value
+                const active = (trainingStyles ?? []).includes(value)
                 return (
-                  <label key={value} className="cursor-pointer">
-                    <input type="radio" value={value} {...register('training_style')} className="sr-only" />
-                    <div className={`flex flex-col items-center p-3 rounded-lg border text-center transition-colors ${active ? 'border-emerald-500 bg-emerald-500/10' : 'border-neutral-700 hover:border-neutral-600'}`}>
-                      <span className="text-xl mb-1">{emoji}</span>
-                      <span className={`text-xs font-medium leading-tight ${active ? 'text-emerald-400' : 'text-neutral-300'}`}>{label}</span>
-                    </div>
-                  </label>
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => toggleStyle(value)}
+                    className={`flex flex-col items-center p-3 rounded-lg border text-center transition-colors ${
+                      active
+                        ? 'border-emerald-500 bg-emerald-500/10'
+                        : 'border-neutral-700 hover:border-neutral-600'
+                    }`}
+                  >
+                    <span className="text-xl mb-1">{emoji}</span>
+                    <span className={`text-xs font-medium leading-tight ${active ? 'text-emerald-400' : 'text-neutral-300'}`}>
+                      {label}
+                    </span>
+                    {active && (
+                      <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 block" />
+                    )}
+                  </button>
                 )
               })}
             </div>

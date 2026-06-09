@@ -26,7 +26,7 @@ export interface UserProfile {
   email:                string | null
   profile_photo_url:    string | null
   experience_level:     ExperienceLevel | null
-  training_style:       string | null
+  training_style:       string[] | null
   step_goal:            number
   sleep_goal_hours:     number
   created_at:           string
